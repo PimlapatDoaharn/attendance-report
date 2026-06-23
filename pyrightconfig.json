@@ -1,0 +1,5 @@
+{
+  "include": ["src", "tests", "run_app.py", "build_exe.py"],
+  "extraPaths": ["src"],
+  "typeCheckingMode": "basic"
+}

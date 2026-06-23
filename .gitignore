@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.spec
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Output / validation files (generated, not source)
+*_validation.xlsx
+Attendance_Report_*.xlsx
+PTVN_Report_*.xlsx
+
+# Test data (local only)
+test/
+testapril/
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/settings.json
+*.swp
