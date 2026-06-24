@@ -987,6 +987,9 @@ def write_ptvn_dashboard(
             dashboard_months.append((_curr_month_label, options.month, _curr_wd, _curr_dept_rows, _curr_overall))
     total_employees = overall[1] if overall else sum(row[1] for row in department_rows)
     overall_attendance = overall[2] if overall else round_up_percentage(sum(row[2] for row in department_rows) / len(department_rows)) if department_rows else 0
+    # Override with freshly computed value from individual sheet (summary AVERAGEIF formulas not evaluated by openpyxl)
+    if _curr_dept_rows:
+        overall_attendance = round(sum(att for _, _, att in _curr_dept_rows) / len(_curr_dept_rows), 4)
     departments_at_target = sum(1 for _, _, attendance in department_rows if attendance >= 0.6)
     below_target = len(department_rows) - departments_at_target
 
