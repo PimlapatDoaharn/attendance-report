@@ -1097,6 +1097,35 @@ def write_ptvn_dashboard(
     for cell_range, label, value, value_type, color, card_bg in cards:
         write_dashboard_card(dashboard, cell_range, label, value, value_type, color, card_bg)
 
+    # Helper cell AP1: live numeric attendance value for CF rules
+    cast(Any, dashboard["AP1"]).value = f"={selected_attendance_for_filter}"
+
+    # Conditional formatting on PTV Overall card (G4:H6): dynamic color follows filter
+    from openpyxl.formatting.rule import Rule
+    from openpyxl.styles.differential import DifferentialStyle
+    from openpyxl.styles import Font as _CFFont, PatternFill as _CFPatternFill
+    _cf_border = Border(
+        left=Side(style="thin", color="DDE7F3"),
+        right=Side(style="thin", color="DDE7F3"),
+        top=Side(style="thin", color="DDE7F3"),
+        bottom=Side(style="thin", color="DDE7F3"),
+    )
+    _cf_green = DifferentialStyle(
+        font=_CFFont(color="1E7C4A", bold=True, size=16),
+        fill=_CFPatternFill(bgColor="E9F7EF"),
+    )
+    _cf_amber = DifferentialStyle(
+        font=_CFFont(color="B97D0F", bold=True, size=16),
+        fill=_CFPatternFill(bgColor="FEF6E4"),
+    )
+    _cf_red = DifferentialStyle(
+        font=_CFFont(color="C0392B", bold=True, size=16),
+        fill=_CFPatternFill(bgColor="FDEAEA"),
+    )
+    dashboard.conditional_formatting.add("G4:H6", Rule(type="expression", formula=["$AP$1>=0.6"], dxf=_cf_green, stopIfTrue=True))
+    dashboard.conditional_formatting.add("G4:H6", Rule(type="expression", formula=["$AP$1>=0.4"], dxf=_cf_amber, stopIfTrue=True))
+    dashboard.conditional_formatting.add("G4:H6", Rule(type="expression", formula=["$AP$1<0.4"],  dxf=_cf_red,   stopIfTrue=True))
+
     table_header_row = 90
     table_first_data_row = table_header_row + 1
 
