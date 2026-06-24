@@ -1286,6 +1286,7 @@ def write_ptvn_dashboard(
             trend_chart.x_axis.axPos = "b"
             trend_chart.x_axis.delete = False
             trend_chart.x_axis.tickLblPos = "nextTo"
+            cast(Any, trend_chart.x_axis).txPr = _build_axis_txPr(16)
             if trend_chart.legend:
                 trend_chart.legend.position = "b"
                 trend_chart.legend.overlay = False
@@ -1391,6 +1392,7 @@ def write_ptvn_dashboard(
             dist_chart.gapWidth = 55
             dist_chart.x_axis.delete = False
             dist_chart.x_axis.tickLblPos = "nextTo"
+            cast(Any, dist_chart.x_axis).txPr = _build_axis_txPr(16)
             if dist_chart.series:
                 from openpyxl.chart.series import DataPoint  # type: ignore[attr-defined]
                 # Monochrome blue: darkest=≥80% (best), lightest=<20% (worst)
@@ -1732,6 +1734,18 @@ def _set_dLbls_font_size(dLbls: object, pt: int) -> None:
     para = Paragraph(pPr=ParagraphProperties(defRPr=rpr), endParaRPr=rpr)
     txPr = RichText(bodyPr=RichTextProperties(), p=[para])
     cast(Any, dLbls).txPr = txPr  # type: ignore[attr-defined]
+
+
+def _build_axis_txPr(pt: int) -> object:
+    """Build a txPr RichText object for chart axis tick label font size."""
+    from openpyxl.chart.text import RichText
+    from openpyxl.drawing.text import (
+        RichTextProperties, Paragraph, ParagraphProperties, CharacterProperties,
+    )
+    sz = pt * 100
+    rpr = CharacterProperties(sz=sz, b=False)
+    para = Paragraph(pPr=ParagraphProperties(defRPr=rpr), endParaRPr=rpr)
+    return RichText(bodyPr=RichTextProperties(), p=[para])
 
 
 def write_chart_callout(
