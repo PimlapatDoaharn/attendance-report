@@ -2024,16 +2024,14 @@ def write_dashboard_chart_sources(
         )
         emp_label = f'IFERROR(INDEX({indiv_title}!${indiv_name_col_letter}:${indiv_name_col_letter},{agg}),"")'  
         label_cell = cast(Any, sheet.cell(row_index, 131))
-        label_cell.value = f'=IF($A$12="ทั้งหมด",{dept_label},{emp_label})'
-        # Attendance: dept attendance in all-dept mode; direct BJ matrix lookup in emp mode
-        # (avoids BF which depends on MATCH($A$6,AH) that breaks when A6 is Thai format)
+        label_cell.value = f'={dept_label}'
+        # Attendance: always show dept attendance regardless of dept filter
         if dept_name:
             dept_attend = f'IFERROR(INDEX({attendance_matrix},MATCH("{dept_name}",{department_range},0),{month_index}),"")'
         else:
             dept_attend = '""'
-        emp_attend = f'IFERROR(INDEX({indiv_title}!${indiv_pct_col_letter}:${indiv_pct_col_letter},{agg}),"")'  
         attendance_cell = cast(Any, sheet.cell(row_index, 132))
-        attendance_cell.value = f'=IF($A$12="ทั้งหมด",{dept_attend},{emp_attend})'
+        attendance_cell.value = f'={dept_attend}'
         attendance_cell.number_format = "0%"
         target_cell = cast(Any, sheet.cell(row_index, 133))
         target_cell.value = f'=IF(EB{row_index}="","",60%)'
