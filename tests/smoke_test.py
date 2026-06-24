@@ -158,10 +158,10 @@ def main() -> None:
         assert "Working Days" in str(dashboard["E4"].value)
         assert "PTV Overall" in str(dashboard["G4"].value)
         assert str(dashboard["C4"].value).startswith('="Total Employees"&CHAR(10)&IF($A$19<>')
-        assert str(dashboard["C63"].value).startswith('=IF($A$12="ทั้งหมด"')
-        assert str(dashboard["D63"].value).startswith('=IF($A$12="ทั้งหมด"')
-        assert str(dashboard["E63"].value).startswith('=IF($A$12="ทั้งหมด"')
-        assert dashboard["E63"].number_format == "0%"
+        assert str(dashboard["C91"].value).startswith('=IF($A$12="ทั้งหมด"')
+        assert str(dashboard["D91"].value).startswith('=IF($A$12="ทั้งหมด"')
+        assert str(dashboard["E91"].value).startswith('=IF($A$12="ทั้งหมด"')
+        assert dashboard["E91"].number_format == "0%"
         assert str(dashboard["ED14"].value).startswith('="Pass"&CHAR(10)&EE14')
         assert str(dashboard["EE14"].value).startswith("=IFERROR(SUMPRODUCT")
         assert str(dashboard["ED15"].value).startswith('="Below Target"&CHAR(10)&EE15')
@@ -199,7 +199,7 @@ def main() -> None:
         assert str(dashboard["EJ18"].value) == "<20%"
         assert str(dashboard["EK14"].value).startswith("=IFERROR(SUMPRODUCT")
         chart_anchors = [(chart.anchor._from.col, chart.anchor._from.row) for chart in cast(Any, dashboard)._charts]
-        assert chart_anchors == [(2, 9), (7, 9), (2, 28), (16, 9), (2, 48)]
+        assert chart_anchors == [(2, 9), (7, 9), (2, 46), (2, 28), (2, 66)]
         print(f"Smoke test passed: {output}")
 
 

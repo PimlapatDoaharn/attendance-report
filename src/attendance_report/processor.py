@@ -1009,7 +1009,7 @@ def write_ptvn_dashboard(
 
     dashboard.sheet_view.showGridLines = False
     dashboard.freeze_panes = "C11"
-    for row in range(1, 88):
+    for row in range(1, 110):
         dashboard.row_dimensions[row].height = 21
     dashboard.row_dimensions[1].height = 34
     dashboard.row_dimensions[2].height = 24
@@ -1089,7 +1089,7 @@ def write_ptvn_dashboard(
     for cell_range, label, value, value_type, color in cards:
         write_dashboard_card(dashboard, cell_range, label, value, value_type, color, white)
 
-    table_header_row = 62
+    table_header_row = 90
     table_first_data_row = table_header_row + 1
 
     write_dashboard_panel_title(dashboard, f"C{table_header_row - 1}:F{table_header_row - 1}", "Department Detail - use filter arrows", dark_blue, panel_fill)
@@ -1158,10 +1158,10 @@ def write_ptvn_dashboard(
         )
         attendance_source_rows = max(len(department_rows), max_emp_per_dept)
         write_dashboard_panel_title(dashboard, "C8:G8", "Attendance Status Summary", dark_blue, panel_fill)
-        write_dashboard_panel_title(dashboard, "H8:P8", "Monthly PTV Overall Trend", dark_blue, panel_fill)
-        write_dashboard_panel_title(dashboard, "Q8:V8", "Attendance Distribution", dark_blue, panel_fill)
-        write_dashboard_panel_title(dashboard, "C28:P28", "Department Performance Ranking", dark_blue, panel_fill)
-        write_dashboard_panel_title(dashboard, "C48:P48", "YTD Average Attendance by Department", dark_blue, panel_fill)
+        write_dashboard_panel_title(dashboard, "H8:X8", "Monthly PTV Overall Trend", dark_blue, panel_fill)
+        write_dashboard_panel_title(dashboard, "C28:P28", "Attendance Distribution", dark_blue, panel_fill)
+        write_dashboard_panel_title(dashboard, "C46:P46", "Department Performance Ranking", dark_blue, panel_fill)
+        write_dashboard_panel_title(dashboard, "C66:P66", "YTD Average Attendance by Department", dark_blue, panel_fill)
 
         if not use_vba_dashboard_charts:
             status_donut = DoughnutChart()
@@ -1320,7 +1320,7 @@ def write_ptvn_dashboard(
                 target_line_chart.series[0].dLbls.showCatName = False
                 target_line_chart.series[0].dLbls.showLegendKey = False
             performance_chart += target_line_chart
-            dashboard.add_chart(performance_chart, "C29")
+            dashboard.add_chart(performance_chart, "C47")
 
         if not use_vba_dashboard_charts:
             dist_chart = BarChart()
@@ -1332,7 +1332,7 @@ def write_ptvn_dashboard(
             dist_chart.set_categories(dist_labels)
             dist_chart.visible_cells_only = False
             dist_chart.height = 12.6
-            dist_chart.width = 27.0
+            dist_chart.width = 49.5
             dist_chart.legend = None
             dist_chart.gapWidth = 55
             dist_chart.x_axis.delete = False
@@ -1354,7 +1354,7 @@ def write_ptvn_dashboard(
                 dist_chart.series[0].dLbls.showLegendKey = False
                 dist_chart.series[0].dLbls.position = "outEnd"
                 _set_dLbls_font_size(dist_chart.series[0].dLbls, 16)
-            dashboard.add_chart(dist_chart, "Q10")
+            dashboard.add_chart(dist_chart, "C29")
 
         if not use_vba_dashboard_charts and department_rows:
             ytd_source_rows = len(department_rows)
@@ -1412,7 +1412,7 @@ def write_ptvn_dashboard(
                 ytd_target_chart.series[0].dLbls.showCatName = False
                 ytd_target_chart.series[0].dLbls.showLegendKey = False
             ytd_chart += ytd_target_chart
-            dashboard.add_chart(ytd_chart, "C49")
+            dashboard.add_chart(ytd_chart, "C67")
 
     widths = {
         "A": 35,
