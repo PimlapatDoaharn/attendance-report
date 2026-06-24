@@ -1291,11 +1291,9 @@ def write_ptvn_dashboard(
                 performance_chart.series[0].graphicalProperties.line.solidFill = "B4E5A1"
                 performance_chart.series[1].graphicalProperties.solidFill = "FBA8AF"  # red fail
                 performance_chart.series[1].graphicalProperties.line.solidFill = "FBA8AF"
-                from openpyxl.chart.data_source import NumFmt as _NumFmt
                 for s in performance_chart.series:
                     s.dLbls = DataLabelList()
                     s.dLbls.showVal = True
-                    s.dLbls.numFmt = _NumFmt(formatCode="0%;;;", sourceLinked=False)
                     s.dLbls.showCatName = False
                     s.dLbls.showSerName = False
                     s.dLbls.showLegendKey = False
@@ -1387,11 +1385,9 @@ def write_ptvn_dashboard(
                 ytd_chart.series[0].graphicalProperties.line.solidFill = "B4E5A1"
                 ytd_chart.series[1].graphicalProperties.solidFill = "FBA8AF"  # red fail
                 ytd_chart.series[1].graphicalProperties.line.solidFill = "FBA8AF"
-                from openpyxl.chart.data_source import NumFmt as _YtdNumFmt
                 for s in ytd_chart.series:
                     s.dLbls = DataLabelList()
                     s.dLbls.showVal = True
-                    s.dLbls.numFmt = _YtdNumFmt(formatCode="0%;;;", sourceLinked=False)
                     s.dLbls.showCatName = False
                     s.dLbls.showSerName = False
                     s.dLbls.showLegendKey = False
@@ -2012,10 +2008,10 @@ def write_dashboard_chart_sources(
     for row_index in range(14, 14 + perf_source_rows):
         pass_cell = cast(Any, sheet.cell(row_index, 136))
         pass_cell.value = f'=IF(EB{row_index}="",NA(),IF(EB{row_index}>=0.6,EB{row_index},0))'
-        pass_cell.number_format = "0%"
+        pass_cell.number_format = "0%;;;"
         fail_cell = cast(Any, sheet.cell(row_index, 145))
         fail_cell.value = f'=IF(EB{row_index}="",NA(),IF(EB{row_index}<0.6,EB{row_index},0))'
-        fail_cell.number_format = "0%"
+        fail_cell.number_format = "0%;;;"
 
     sheet["ED13"] = "Status"
     sheet["EE13"] = "Employees"
@@ -2131,10 +2127,10 @@ def write_dashboard_chart_sources(
         row = 61 + i
         ytd_pass_cell = cast(Any, sheet.cell(row, 152))
         ytd_pass_cell.value = f'=IF(EM{row}="",NA(),IF(EM{row}>=0.6,EM{row},0))'
-        ytd_pass_cell.number_format = "0%"
+        ytd_pass_cell.number_format = "0%;;;"
         ytd_fail_cell = cast(Any, sheet.cell(row, 153))
         ytd_fail_cell.value = f'=IF(EM{row}="",NA(),IF(EM{row}<0.6,EM{row},0))'
-        ytd_fail_cell.number_format = "0%"
+        ytd_fail_cell.number_format = "0%;;;"
 
 
 def write_dashboard_filter_model(
