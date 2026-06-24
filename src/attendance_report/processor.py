@@ -1017,7 +1017,7 @@ def write_ptvn_dashboard(
 
     dashboard.merge_cells("C1:P2")
     title_cell = cast(Any, dashboard["C1"])
-    title_cell.value = f"PTVN Attendance Dashboard  ({month_title})"
+    title_cell.value = f'="PTVN Attendance Dashboard  ("&IFERROR(INDEX($AK$2:$AK$13,MATCH($A$6,$AH$2:$AH$13,0)),"{month_title}")&")"'
     title_cell.font = Font(size=22, bold=True, color=white)
     title_cell.fill = PatternFill("solid", fgColor=navy)
     title_cell.alignment = Alignment(horizontal="center", vertical="center")
@@ -1481,7 +1481,14 @@ def write_sidebar(
     department_values = ["ทั้งหมด", *departments]
     employee_values = ["ทั้งหมด", *[name for name, _, _ in employee_rows]]
 
+    english_month_values = [
+        f"{MONTH_NAMES[month_number - 1]} {options.year}"
+        for _, month_number, _, _, _ in dashboard_months
+    ]
+    if not english_month_values:
+        english_month_values = [f"{MONTH_NAMES[options.month - 1]} {options.year}"]
     write_filter_source(sheet, 34, month_values)
+    write_filter_source(sheet, 37, english_month_values)
     write_filter_source(sheet, 35, department_values)
     write_employee_filter_source_formulas(sheet, 36, len(employee_rows))
 
