@@ -1293,12 +1293,31 @@ def write_ptvn_dashboard(
                 performance_chart.series[1].graphicalProperties.line.solidFill = "FBA8AF"
                 for s in performance_chart.series:
                     s.dLbls = DataLabelList()
-                    s.dLbls.showVal = True
+                    s.dLbls.showVal = False  # labels handled by invisible overlay below
                     s.dLbls.showCatName = False
                     s.dLbls.showSerName = False
                     s.dLbls.showLegendKey = False
-                    _set_dLbls_font_size(s.dLbls, 16)
             performance_chart.legend = None
+
+            # Invisible line overlay — shows data labels from EB (actual value, no NA()) 
+            from openpyxl.chart import LineChart as _PerfLabelChart
+            perf_label_chart = _PerfLabelChart()
+            cast(Any, perf_label_chart).dispBlanksAs = "gap"  # type: ignore[attr-defined]
+            perf_label_ref = Reference(dashboard, min_col=132, min_row=13, max_row=13 + attendance_source_rows)
+            perf_label_chart.add_data(perf_label_ref, titles_from_data=True)
+            perf_label_chart.y_axis.axId = performance_chart.y_axis.axId
+            perf_label_chart.x_axis.axId = performance_chart.x_axis.axId
+            if perf_label_chart.series:
+                perf_label_chart.series[0].graphicalProperties.line.solidFill = "FFFFFF"  # white = invisible
+                perf_label_chart.series[0].marker.symbol = "none"
+                perf_label_chart.series[0].smooth = False
+                perf_label_chart.series[0].dLbls = DataLabelList()
+                perf_label_chart.series[0].dLbls.showVal = True
+                perf_label_chart.series[0].dLbls.showCatName = False
+                perf_label_chart.series[0].dLbls.showSerName = False
+                perf_label_chart.series[0].dLbls.showLegendKey = False
+                _set_dLbls_font_size(perf_label_chart.series[0].dLbls, 16)
+            performance_chart += perf_label_chart
 
             # Add target 60% as a red dashed line via combo chart (BarChart + LineChart)
             from openpyxl.chart import LineChart as _LineChart
@@ -1387,11 +1406,29 @@ def write_ptvn_dashboard(
                 ytd_chart.series[1].graphicalProperties.line.solidFill = "FBA8AF"
                 for s in ytd_chart.series:
                     s.dLbls = DataLabelList()
-                    s.dLbls.showVal = True
+                    s.dLbls.showVal = False  # labels handled by invisible overlay below
                     s.dLbls.showCatName = False
                     s.dLbls.showSerName = False
                     s.dLbls.showLegendKey = False
-                    _set_dLbls_font_size(s.dLbls, 16)
+            # Invisible line overlay — shows data labels from EM (actual YTD value, no NA())
+            from openpyxl.chart import LineChart as _YtdLabelChart
+            ytd_label_chart = _YtdLabelChart()
+            cast(Any, ytd_label_chart).dispBlanksAs = "gap"  # type: ignore[attr-defined]
+            ytd_label_ref = Reference(dashboard, min_col=143, min_row=60, max_row=60 + ytd_source_rows)
+            ytd_label_chart.add_data(ytd_label_ref, titles_from_data=True)
+            ytd_label_chart.y_axis.axId = ytd_chart.y_axis.axId
+            ytd_label_chart.x_axis.axId = ytd_chart.x_axis.axId
+            if ytd_label_chart.series:
+                ytd_label_chart.series[0].graphicalProperties.line.solidFill = "FFFFFF"  # white = invisible
+                ytd_label_chart.series[0].marker.symbol = "none"
+                ytd_label_chart.series[0].smooth = False
+                ytd_label_chart.series[0].dLbls = DataLabelList()
+                ytd_label_chart.series[0].dLbls.showVal = True
+                ytd_label_chart.series[0].dLbls.showCatName = False
+                ytd_label_chart.series[0].dLbls.showSerName = False
+                ytd_label_chart.series[0].dLbls.showLegendKey = False
+                _set_dLbls_font_size(ytd_label_chart.series[0].dLbls, 16)
+            ytd_chart += ytd_label_chart
             # Red dashed 60% target line
             from openpyxl.chart import LineChart as _YtdLineChart
             ytd_target_chart = _YtdLineChart()
