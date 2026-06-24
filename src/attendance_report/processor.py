@@ -1266,9 +1266,11 @@ def write_ptvn_dashboard(
             performance_chart.title = "Average Attendance Rate by Department (%)"
             performance_chart.x_axis.title = None
             performance_chart.y_axis.title = None
-            performance_data = Reference(dashboard, min_col=132, min_row=13, max_row=13 + attendance_source_rows)
+            perf_pass_data = Reference(dashboard, min_col=136, min_row=13, max_row=13 + attendance_source_rows)
+            perf_fail_data = Reference(dashboard, min_col=145, min_row=13, max_row=13 + attendance_source_rows)
             performance_labels = Reference(dashboard, min_col=131, min_row=14, max_row=13 + attendance_source_rows)
-            performance_chart.add_data(performance_data, titles_from_data=True)  # series[0] = attendance
+            performance_chart.add_data(perf_pass_data, titles_from_data=True)  # series[0] = pass (green)
+            performance_chart.add_data(perf_fail_data, titles_from_data=True)  # series[1] = fail (red)
             performance_chart.set_categories(performance_labels)
             performance_chart.varyColors = False
             performance_chart.y_axis.scaling.min = 0
@@ -1282,27 +1284,20 @@ def write_ptvn_dashboard(
             performance_chart.width = 49.5
             performance_chart.gapWidth = 219
             performance_chart.overlap = 100
-            # Tell Excel to skip blank values (show as gap, not zero bar)
+            # Tell Excel to skip NA() values as gaps so only one colored bar shows per dept
             cast(Any, performance_chart).dispBlanksAs = "gap"  # type: ignore[attr-defined]
-            if len(performance_chart.series) >= 1:
-                from openpyxl.chart.series import DataPoint  # type: ignore[attr-defined]
-                # Attendance series: monochrome blue gradient (dark=high, light=low)
-                n = attendance_source_rows
-                for i in range(n):
-                    t = i / max(n - 1, 1)
-                    r_c = int(0x1F + (0x9D - 0x1F) * t)
-                    g_c = int(0x38 + (0xC3 - 0x38) * t)
-                    b_c = int(0x64 + (0xE6 - 0x64) * t)
-                    pt = DataPoint(idx=i, invertIfNegative=False)
-                    pt.graphicalProperties.solidFill = f"{r_c:02X}{g_c:02X}{b_c:02X}"
-                    pt.graphicalProperties.line.solidFill = f"{r_c:02X}{g_c:02X}{b_c:02X}"
-                    performance_chart.series[0].dPt.append(pt)
-                performance_chart.series[0].dLbls = DataLabelList()
-                performance_chart.series[0].dLbls.showVal = True
-                performance_chart.series[0].dLbls.showCatName = False
-                performance_chart.series[0].dLbls.showSerName = False
-                performance_chart.series[0].dLbls.showLegendKey = False
-                _set_dLbls_font_size(performance_chart.series[0].dLbls, 16)
+            if len(performance_chart.series) >= 2:
+                performance_chart.series[0].graphicalProperties.solidFill = "B4E5A1"  # green pass
+                performance_chart.series[0].graphicalProperties.line.solidFill = "B4E5A1"
+                performance_chart.series[1].graphicalProperties.solidFill = "FBA8AF"  # red fail
+                performance_chart.series[1].graphicalProperties.line.solidFill = "FBA8AF"
+                for s in performance_chart.series:
+                    s.dLbls = DataLabelList()
+                    s.dLbls.showVal = True
+                    s.dLbls.showCatName = False
+                    s.dLbls.showSerName = False
+                    s.dLbls.showLegendKey = False
+                    _set_dLbls_font_size(s.dLbls, 16)
             performance_chart.legend = None
 
             # Add target 60% as a red dashed line via combo chart (BarChart + LineChart)
@@ -1365,9 +1360,11 @@ def write_ptvn_dashboard(
             ytd_source_rows = len(department_rows)
             ytd_chart = BarChart()
             ytd_chart.type = "col"
-            ytd_data = Reference(dashboard, min_col=143, min_row=60, max_row=60 + ytd_source_rows)
+            ytd_pass_data = Reference(dashboard, min_col=152, min_row=60, max_row=60 + ytd_source_rows)
+            ytd_fail_data = Reference(dashboard, min_col=153, min_row=60, max_row=60 + ytd_source_rows)
             ytd_labels = Reference(dashboard, min_col=142, min_row=61, max_row=60 + ytd_source_rows)
-            ytd_chart.add_data(ytd_data, titles_from_data=True)
+            ytd_chart.add_data(ytd_pass_data, titles_from_data=True)  # series[0] = pass (green)
+            ytd_chart.add_data(ytd_fail_data, titles_from_data=True)  # series[1] = fail (red)
             ytd_chart.set_categories(ytd_labels)
             ytd_chart.varyColors = False
             ytd_chart.y_axis.scaling.min = 0
@@ -1380,17 +1377,21 @@ def write_ptvn_dashboard(
             ytd_chart.height = 14.3
             ytd_chart.width = 49.5
             ytd_chart.gapWidth = 219
+            ytd_chart.overlap = 100
             ytd_chart.legend = None
             cast(Any, ytd_chart).dispBlanksAs = "gap"  # type: ignore[attr-defined]
-            if ytd_chart.series:
-                ytd_chart.series[0].graphicalProperties.solidFill = "4472C4"
-                ytd_chart.series[0].graphicalProperties.line.solidFill = "4472C4"
-                ytd_chart.series[0].dLbls = DataLabelList()
-                ytd_chart.series[0].dLbls.showVal = True
-                ytd_chart.series[0].dLbls.showCatName = False
-                ytd_chart.series[0].dLbls.showSerName = False
-                ytd_chart.series[0].dLbls.showLegendKey = False
-                _set_dLbls_font_size(ytd_chart.series[0].dLbls, 16)
+            if len(ytd_chart.series) >= 2:
+                ytd_chart.series[0].graphicalProperties.solidFill = "B4E5A1"  # green pass
+                ytd_chart.series[0].graphicalProperties.line.solidFill = "B4E5A1"
+                ytd_chart.series[1].graphicalProperties.solidFill = "FBA8AF"  # red fail
+                ytd_chart.series[1].graphicalProperties.line.solidFill = "FBA8AF"
+                for s in ytd_chart.series:
+                    s.dLbls = DataLabelList()
+                    s.dLbls.showVal = True
+                    s.dLbls.showCatName = False
+                    s.dLbls.showSerName = False
+                    s.dLbls.showLegendKey = False
+                    _set_dLbls_font_size(s.dLbls, 16)
             # Red dashed 60% target line
             from openpyxl.chart import LineChart as _YtdLineChart
             ytd_target_chart = _YtdLineChart()
@@ -2001,6 +2002,17 @@ def write_dashboard_chart_sources(
         target_cell.value = f'=IF(EB{row_index}="","",60%)'
         target_cell.number_format = "0%"
 
+    # Pass/Fail split columns for dynamic bar coloring (EF=136 pass, EO=145 fail)
+    cast(Any, sheet["EF13"]).value = "Pass (\u226560%)"
+    cast(Any, sheet["EO13"]).value = "Fail (<60%)"
+    for row_index in range(14, 14 + perf_source_rows):
+        pass_cell = cast(Any, sheet.cell(row_index, 136))
+        pass_cell.value = f'=IF(EB{row_index}="",NA(),IF(EB{row_index}>=0.6,EB{row_index},NA()))'
+        pass_cell.number_format = "0%"
+        fail_cell = cast(Any, sheet.cell(row_index, 145))
+        fail_cell.value = f'=IF(EB{row_index}="",NA(),IF(EB{row_index}<0.6,EB{row_index},NA()))'
+        fail_cell.number_format = "0%"
+
     sheet["ED13"] = "Status"
     sheet["EE13"] = "Employees"
     sheet["ED14"] = '="Pass"&CHAR(10)&EE14&" Employees ("&TEXT(IFERROR(EE14/SUM($EE$14:$EE$15),0),"0%")&")"'
@@ -2107,6 +2119,18 @@ def write_dashboard_chart_sources(
         ytd_target_cell = cast(Any, sheet.cell(row, 144))
         ytd_target_cell.value = 0.6
         ytd_target_cell.number_format = "0%"
+
+    # YTD pass/fail split columns (EV=152 pass, EW=153 fail)
+    cast(Any, sheet["EV60"]).value = "YTD Pass (\u226560%)"
+    cast(Any, sheet["EW60"]).value = "YTD Fail (<60%)"
+    for i, (dept_name, ytd_avg) in enumerate(ytd_sorted):
+        row = 61 + i
+        ytd_pass_cell = cast(Any, sheet.cell(row, 152))
+        ytd_pass_cell.value = f'=IF(EM{row}="",NA(),IF(EM{row}>=0.6,EM{row},NA()))'
+        ytd_pass_cell.number_format = "0%"
+        ytd_fail_cell = cast(Any, sheet.cell(row, 153))
+        ytd_fail_cell.value = f'=IF(EM{row}="",NA(),IF(EM{row}<0.6,EM{row},NA()))'
+        ytd_fail_cell.number_format = "0%"
 
 
 def write_dashboard_filter_model(
