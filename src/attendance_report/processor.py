@@ -1053,41 +1053,46 @@ def write_ptvn_dashboard(
     pass_employee_formula = f'IFERROR(SUMPRODUCT(--({employee_filter}),--($BF$2:$BF${employee_end_row}>=0.6)),0)'
     below_employee_formula = f'IFERROR(SUMPRODUCT(--({employee_filter}),--($BF$2:$BF${employee_end_row}<0.6)),0)'
 
+    # KPI card colors per spec
+    ptv_overall_val = overall_attendance
+    ptv_bg    = "E9F7EF" if ptv_overall_val >= 0.6 else ("FEF6E4" if ptv_overall_val >= 0.4 else "FDEAEA")
+    ptv_color = "1E7C4A" if ptv_overall_val >= 0.6 else ("B97D0F" if ptv_overall_val >= 0.4 else "C0392B")
+
     cards = [
         (
             "C4:D6",
             "Total Employees",
             f'="Total Employees"&CHAR(10)&IF($A$19<>"ทั้งหมด",1,IF($A$12="ทั้งหมด",$AN$2,IFERROR(INDEX({employee_range},MATCH($A$12,{department_range},0)),0)))',
             "formula",
-            dark_blue,
+            "3D5A73", "EEF2F7",
         ),
-        ("E4:F6", "Working Days", f'="Working Days"&CHAR(10)&IFERROR(INDEX($AP$2:${month_end_letter}$2,1,{month_index}),0)', "formula", green),
+        ("E4:F6", "Working Days", f'="Working Days"&CHAR(10)&IFERROR(INDEX($AP$2:${month_end_letter}$2,1,{month_index}),0)', "formula", "2E6B8A", "EDF4F8"),
         (
             "G4:H6",
             "PTV Overall",
             f'="PTV Overall"&CHAR(10)&TEXT({selected_attendance_for_filter},"0%")',
             "formula",
-            green if overall_attendance >= 0.6 else orange,
+            ptv_color, ptv_bg,
         ),
         (
             "I4:J6",
             "Pass Departments",
             f'="Pass Departments"&CHAR(10)&IF($A$12="ทั้งหมด",{pass_for_month},IF({selected_department_attendance}>=0.6,1,0))',
             "formula",
-            purple,
+            "1E7C4A", "E9F7EF",
         ),
         (
             "K4:L6",
             "Below Target",
             f'="Below Target"&CHAR(10)&IF($A$12="ทั้งหมด",{below_for_month},IF({selected_department_attendance}<0.6,1,0))',
             "formula",
-            red if below_target else green,
+            "C0392B", "FDEAEA",
         ),
-        ("M4:N6", "Pass Employee", f'="Pass Employee"&CHAR(10)&{pass_employee_formula}', "formula", green),
-        ("O4:P6", "Below Target Employee", f'="Below Target Employee"&CHAR(10)&{below_employee_formula}', "formula", red),
+        ("M4:N6", "Pass Employee", f'="Pass Employee"&CHAR(10)&{pass_employee_formula}', "formula", "1E7C4A", "E9F7EF"),
+        ("O4:P6", "Below Target Employee", f'="Below Target Employee"&CHAR(10)&{below_employee_formula}', "formula", "C0392B", "FDEAEA"),
     ]
-    for cell_range, label, value, value_type, color in cards:
-        write_dashboard_card(dashboard, cell_range, label, value, value_type, color, white)
+    for cell_range, label, value, value_type, color, card_bg in cards:
+        write_dashboard_card(dashboard, cell_range, label, value, value_type, color, card_bg)
 
     table_header_row = 90
     table_first_data_row = table_header_row + 1
@@ -1157,11 +1162,11 @@ def write_ptvn_dashboard(
             max_emp_per_dept,
         )
         attendance_source_rows = max(len(department_rows), max_emp_per_dept)
-        write_dashboard_panel_title(dashboard, "C8:G8", "Attendance Status Summary", dark_blue, panel_fill)
-        write_dashboard_panel_title(dashboard, "H8:P8", "Monthly PTV Overall Trend", dark_blue, panel_fill)
-        write_dashboard_panel_title(dashboard, "C28:P28", "Attendance Distribution", dark_blue, panel_fill)
-        write_dashboard_panel_title(dashboard, "C46:P46", "Department Performance Ranking", dark_blue, panel_fill)
-        write_dashboard_panel_title(dashboard, "C66:P66", "YTD Average Attendance by Department", dark_blue, panel_fill)
+        write_dashboard_panel_title(dashboard, "C8:G8", "Pass vs. Below Target Employee", dark_blue, panel_fill)
+        write_dashboard_panel_title(dashboard, "H8:P8", "Average attendance trend across all months", dark_blue, panel_fill)
+        write_dashboard_panel_title(dashboard, "C28:P28", "Employee count by attendance percentage range", dark_blue, panel_fill)
+        write_dashboard_panel_title(dashboard, "C46:P46", "Average attendance ranking by department", dark_blue, panel_fill)
+        write_dashboard_panel_title(dashboard, "C66:P66", "Monthly average attendance by department for the year", dark_blue, panel_fill)
 
         if not use_vba_dashboard_charts:
             status_donut = DoughnutChart()
@@ -2449,16 +2454,7 @@ def write_dashboard_card(
     sheet.merge_cells(cell_range)
     start_cell = cell_range.split(":", 1)[0]
     cell = cast(Any, sheet[start_cell])
-    card_fills = {
-        "Total Employees": "EFF6FF",
-        "Working Days": "F3FAF0",
-        "PTV Overall": "FFF6EC",
-        "Pass Departments": "F4F1FF",
-        "Below Target": "FFF1F1",
-        "Pass Employee": "F3FAF0",
-        "Below Target Employee": "FFF1F1",
-    }
-    fill = card_fills.get(label, fill_color)
+    fill = fill_color
     if value_type == "formula":
         display_value = str(value)
     elif value_type == "percent" and isinstance(value, (int, float)):
