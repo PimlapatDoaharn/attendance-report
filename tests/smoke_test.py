@@ -144,7 +144,7 @@ def main() -> None:
         assert individual["C5"].value == 1
         assert individual["E5"].value == "=MIN(ROUNDUP((B5+C5)/$B$3,2),100%)"
         assert individual["E5"].number_format == "0%"
-        assert "PTVN Attendance Dashboard" in str(dashboard["A1"].value)
+        assert "PTVN Attendance Dashboard" in str(dashboard["C1"].value)
         assert "ตัวกรองข้อมูล" in str(dashboard["A4"].value)
         assert dashboard["A5"].value.startswith("เดือน")
         assert dashboard["A11"].value.startswith("แผนก")
@@ -155,8 +155,8 @@ def main() -> None:
         validation_ranges = [str(validation.sqref) for validation in dashboard.data_validations.dataValidation]
         assert validation_ranges == ["A6", "A12", "A19"]
         assert dashboard.column_dimensions["AH"].hidden
-        assert "Working Days" in str(dashboard["G4"].value)
-        assert "PTV Overall" in str(dashboard["J4"].value)
+        assert "Working Days" in str(dashboard["E4"].value)
+        assert "PTV Overall" in str(dashboard["G4"].value)
         assert str(dashboard["C4"].value).startswith('="Total Employees"&CHAR(10)&IF($A$19<>')
         assert str(dashboard["C63"].value).startswith('=IF($A$12="ทั้งหมด"')
         assert str(dashboard["D63"].value).startswith('=IF($A$12="ทั้งหมด"')
@@ -184,12 +184,12 @@ def main() -> None:
         assert "Emp_strategytransformationai" in ptvn_wb.defined_names
         employee_validation = dashboard.data_validations.dataValidation[2]
         assert employee_validation.formula1 == "=INDIRECT($BH$2)"
-        assert "Pass Employee" in str(dashboard["S4"].value)
-        assert "Below Target Employee" in str(dashboard["V4"].value)
-        assert str(dashboard["S4"].value).startswith('="Pass Employee"&CHAR(10)&IFERROR(SUMPRODUCT')
-        assert "$A$19" in str(dashboard["S4"].value)
+        assert "Pass Employee" in str(dashboard["M4"].value)
+        assert "Below Target Employee" in str(dashboard["O4"].value)
+        assert str(dashboard["M4"].value).startswith('="Pass Employee"&CHAR(10)&IFERROR(SUMPRODUCT')
+        assert "$A$19" in str(dashboard["M4"].value)
         assert str(dashboard["A20"].value).startswith("=IFERROR(INDEX(INDIRECT($BH$2)")
-        assert len(cast(Any, dashboard)._charts) == 4
+        assert len(cast(Any, dashboard)._charts) == 5
         assert dashboard["EJ40"].value == "Other"
         assert dashboard["EJ41"].value == "Sick Leave"
         assert str(dashboard["EK40"].value).startswith("=IFERROR(SUMPRODUCT")
@@ -199,7 +199,7 @@ def main() -> None:
         assert str(dashboard["EJ18"].value) == "<20%"
         assert str(dashboard["EK14"].value).startswith("=IFERROR(SUMPRODUCT")
         chart_anchors = [(chart.anchor._from.col, chart.anchor._from.row) for chart in cast(Any, dashboard)._charts]
-        assert chart_anchors == [(2, 9), (7, 9), (2, 28), (16, 9)]
+        assert chart_anchors == [(2, 9), (7, 9), (2, 28), (16, 9), (2, 48)]
         print(f"Smoke test passed: {output}")
 
 

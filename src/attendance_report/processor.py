@@ -753,6 +753,7 @@ def process_ptvn_report(
         count_totals,
         leave_totals,
         use_vba_dashboard_charts=ptvn_report_path.suffix.lower() == ".xlsm",
+        ptvn_source_path=ptvn_report_path,
     )
 
     workbook.calculation.calcMode = "auto"
@@ -948,6 +949,7 @@ def write_ptvn_dashboard(
     count_totals: dict[str, int],
     leave_totals: dict[str, int],
     use_vba_dashboard_charts: bool = False,
+    ptvn_source_path: str | Path | None = None,
 ) -> None:
     dashboard_name = "Dashboard"
     if dashboard_name in workbook.sheetnames:
@@ -960,7 +962,29 @@ def write_ptvn_dashboard(
     department_rows, overall = collect_ptvn_summary_rows(summary_sheet, month_col)
     if not department_rows:
         department_rows, overall = collect_ptvn_summary_formula_rows(summary_sheet, month_col, employee_department_by_name)
-    dashboard_months = collect_dashboard_months(summary_sheet, options)
+    # Load data_only copy for reading cached cell values from prior months (formulas not evaluated by openpyxl)
+    if ptvn_source_path:
+        _data_wb = load_workbook(Path(ptvn_source_path), data_only=True)
+        _summary_readonly = (
+            _data_wb["2026 Summary Report"]
+            if "2026 Summary Report" in _data_wb.sheetnames
+            else summary_sheet
+        )
+    else:
+        _summary_readonly = summary_sheet
+    dashboard_months = collect_dashboard_months(_summary_readonly, options)
+    # Inject current month dept attendance computed directly from individual_sheet (AVERAGEIF formulas not evaluated)
+    _curr_dept_rows = _compute_dept_attendance_from_individual(individual_sheet, options)
+    if _curr_dept_rows:
+        _curr_month_label = f"{THAI_MONTH_NAMES[options.month - 1]} {options.year + 543}"
+        _curr_wd = options.working_days or len(list(iter_month_business_days(options.year, options.month)))
+        _curr_overall = round(sum(att for _, _, att in _curr_dept_rows) / len(_curr_dept_rows), 4) if _curr_dept_rows else 0.0
+        dashboard_months = [
+            (label, mn, wd_val, (_curr_dept_rows if mn == options.month else rows), oa)
+            for label, mn, wd_val, rows, oa in dashboard_months
+        ]
+        if not any(mn == options.month for _, mn, _, _, _ in dashboard_months):
+            dashboard_months.append((_curr_month_label, options.month, _curr_wd, _curr_dept_rows, _curr_overall))
     total_employees = overall[1] if overall else sum(row[1] for row in department_rows)
     overall_attendance = overall[2] if overall else round_up_percentage(sum(row[2] for row in department_rows) / len(department_rows)) if department_rows else 0
     departments_at_target = sum(1 for _, _, attendance in department_rows if attendance >= 0.6)
@@ -969,7 +993,7 @@ def write_ptvn_dashboard(
     dark_blue = "2F5597"
     navy = "7DA7D9"
     light_blue = "CFE2F3"
-    panel_fill = "F8FAFC"
+    panel_fill = "D3E1F1"
     green = "6AA84F"
     orange = "E69138"
     red = "CC0000"
@@ -991,8 +1015,8 @@ def write_ptvn_dashboard(
     dashboard.row_dimensions[2].height = 24
     dashboard.row_dimensions[9].height = 8  # spacer between panel title and charts
 
-    dashboard.merge_cells("A1:AA2")
-    title_cell = cast(Any, dashboard["A1"])
+    dashboard.merge_cells("C1:P2")
+    title_cell = cast(Any, dashboard["C1"])
     title_cell.value = f"PTVN Attendance Dashboard  ({month_title})"
     title_cell.font = Font(size=22, bold=True, color=white)
     title_cell.fill = PatternFill("solid", fgColor=navy)
@@ -1031,36 +1055,36 @@ def write_ptvn_dashboard(
 
     cards = [
         (
-            "C4:F6",
+            "C4:D6",
             "Total Employees",
             f'="Total Employees"&CHAR(10)&IF($A$19<>"ทั้งหมด",1,IF($A$12="ทั้งหมด",$AN$2,IFERROR(INDEX({employee_range},MATCH($A$12,{department_range},0)),0)))',
             "formula",
             dark_blue,
         ),
-        ("G4:I6", "Working Days", f'="Working Days"&CHAR(10)&IFERROR(INDEX($AP$2:${month_end_letter}$2,1,{month_index}),0)', "formula", green),
+        ("E4:F6", "Working Days", f'="Working Days"&CHAR(10)&IFERROR(INDEX($AP$2:${month_end_letter}$2,1,{month_index}),0)', "formula", green),
         (
-            "J4:L6",
+            "G4:H6",
             "PTV Overall",
             f'="PTV Overall"&CHAR(10)&TEXT({selected_attendance_for_filter},"0%")',
             "formula",
             green if overall_attendance >= 0.6 else orange,
         ),
         (
-            "M4:O6",
+            "I4:J6",
             "Pass Departments",
             f'="Pass Departments"&CHAR(10)&IF($A$12="ทั้งหมด",{pass_for_month},IF({selected_department_attendance}>=0.6,1,0))',
             "formula",
             purple,
         ),
         (
-            "P4:R6",
+            "K4:L6",
             "Below Target",
             f'="Below Target"&CHAR(10)&IF($A$12="ทั้งหมด",{below_for_month},IF({selected_department_attendance}<0.6,1,0))',
             "formula",
             red if below_target else green,
         ),
-        ("S4:U6", "Pass Employee", f'="Pass Employee"&CHAR(10)&{pass_employee_formula}', "formula", green),
-        ("V4:X6", "Below Target Employee", f'="Below Target Employee"&CHAR(10)&{below_employee_formula}', "formula", red),
+        ("M4:N6", "Pass Employee", f'="Pass Employee"&CHAR(10)&{pass_employee_formula}', "formula", green),
+        ("O4:P6", "Below Target Employee", f'="Below Target Employee"&CHAR(10)&{below_employee_formula}', "formula", red),
     ]
     for cell_range, label, value, value_type, color in cards:
         write_dashboard_card(dashboard, cell_range, label, value, value_type, color, white)
@@ -1135,8 +1159,9 @@ def write_ptvn_dashboard(
         attendance_source_rows = max(len(department_rows), max_emp_per_dept)
         write_dashboard_panel_title(dashboard, "C8:G8", "Attendance Status Summary", dark_blue, panel_fill)
         write_dashboard_panel_title(dashboard, "H8:P8", "Monthly PTV Overall Trend", dark_blue, panel_fill)
-        write_dashboard_panel_title(dashboard, "C28:P28", "Department Performance Ranking", dark_blue, panel_fill)
         write_dashboard_panel_title(dashboard, "Q8:V8", "Attendance Distribution", dark_blue, panel_fill)
+        write_dashboard_panel_title(dashboard, "C28:P28", "Department Performance Ranking", dark_blue, panel_fill)
+        write_dashboard_panel_title(dashboard, "C48:P48", "YTD Average Attendance by Department", dark_blue, panel_fill)
 
         if not use_vba_dashboard_charts:
             status_donut = DoughnutChart()
@@ -1175,6 +1200,7 @@ def write_ptvn_dashboard(
                 status_donut.series[0].dLbls.showVal = False
                 status_donut.series[0].dLbls.showLegendKey = False
                 status_donut.series[0].dLbls.showLeaderLines = True
+                _set_dLbls_font_size(status_donut.series[0].dLbls, 16)
             dashboard.add_chart(status_donut, "C10")
         if not use_vba_dashboard_charts:
             # Status summary cards removed to free dashboard space
@@ -1220,13 +1246,15 @@ def write_ptvn_dashboard(
                 trend_chart.series[0].dLbls.showSerName = False
                 trend_chart.series[0].dLbls.showCatName = False
                 trend_chart.series[0].dLbls.showLegendKey = False
+                _set_dLbls_font_size(trend_chart.series[0].dLbls, 16)
                 trend_chart.series[0].graphicalProperties.line.solidFill = "0070C0"
                 trend_chart.series[0].graphicalProperties.line.width = 31750
             if len(trend_chart.series) > 1:
                 trend_chart.series[1].marker.symbol = "none"
-                trend_chart.series[1].smooth = True
+                trend_chart.series[1].smooth = False
                 trend_chart.series[1].graphicalProperties.line.solidFill = "CC0000"
-                trend_chart.series[1].graphicalProperties.line.width = 31750
+                trend_chart.series[1].graphicalProperties.line.width = 19050
+                trend_chart.series[1].graphicalProperties.line.prstDash = "lgDash"
             trend_chart.legend = None
             dashboard.add_chart(trend_chart, "H10")
         if not use_vba_dashboard_charts:
@@ -1274,6 +1302,7 @@ def write_ptvn_dashboard(
                 performance_chart.series[0].dLbls.showCatName = False
                 performance_chart.series[0].dLbls.showSerName = False
                 performance_chart.series[0].dLbls.showLegendKey = False
+                _set_dLbls_font_size(performance_chart.series[0].dLbls, 16)
             performance_chart.legend = None
 
             # Add target 60% as a red dashed line via combo chart (BarChart + LineChart)
@@ -1287,7 +1316,7 @@ def write_ptvn_dashboard(
             if target_line_chart.series:
                 target_line_chart.series[0].graphicalProperties.line.solidFill = "FF0000"
                 target_line_chart.series[0].graphicalProperties.line.width = 19050  # 1.5pt
-                target_line_chart.series[0].graphicalProperties.line.dashDot = "dash"
+                target_line_chart.series[0].graphicalProperties.line.prstDash = "lgDash"
                 target_line_chart.series[0].marker.symbol = "none"
                 target_line_chart.series[0].smooth = False
                 target_line_chart.series[0].dLbls = DataLabelList()
@@ -1329,7 +1358,60 @@ def write_ptvn_dashboard(
                 dist_chart.series[0].dLbls.showSerName = False
                 dist_chart.series[0].dLbls.showLegendKey = False
                 dist_chart.series[0].dLbls.position = "outEnd"
+                _set_dLbls_font_size(dist_chart.series[0].dLbls, 16)
             dashboard.add_chart(dist_chart, "Q10")
+
+        if not use_vba_dashboard_charts and department_rows:
+            ytd_source_rows = len(department_rows)
+            ytd_chart = BarChart()
+            ytd_chart.type = "col"
+            ytd_data = Reference(dashboard, min_col=143, min_row=60, max_row=60 + ytd_source_rows)
+            ytd_labels = Reference(dashboard, min_col=142, min_row=61, max_row=60 + ytd_source_rows)
+            ytd_chart.add_data(ytd_data, titles_from_data=True)
+            ytd_chart.set_categories(ytd_labels)
+            ytd_chart.varyColors = False
+            ytd_chart.y_axis.scaling.min = 0
+            ytd_chart.y_axis.scaling.max = 1
+            ytd_chart.y_axis.majorUnit = 0.2
+            ytd_chart.y_axis.numFmt = "0%"
+            ytd_chart.x_axis.delete = False
+            ytd_chart.x_axis.tickLblPos = "nextTo"
+            ytd_chart.visible_cells_only = False
+            ytd_chart.height = 14.3
+            ytd_chart.width = 49.5
+            ytd_chart.gapWidth = 219
+            ytd_chart.legend = None
+            cast(Any, ytd_chart).dispBlanksAs = "gap"  # type: ignore[attr-defined]
+            if ytd_chart.series:
+                ytd_chart.series[0].graphicalProperties.solidFill = "4472C4"
+                ytd_chart.series[0].graphicalProperties.line.solidFill = "4472C4"
+                ytd_chart.series[0].dLbls = DataLabelList()
+                ytd_chart.series[0].dLbls.showVal = True
+                ytd_chart.series[0].dLbls.showCatName = False
+                ytd_chart.series[0].dLbls.showSerName = False
+                ytd_chart.series[0].dLbls.showLegendKey = False
+                _set_dLbls_font_size(ytd_chart.series[0].dLbls, 16)
+            # Red dashed 60% target line
+            from openpyxl.chart import LineChart as _YtdLineChart
+            ytd_target_chart = _YtdLineChart()
+            cast(Any, ytd_target_chart).dispBlanksAs = "gap"  # type: ignore[attr-defined]
+            ytd_target_ref = Reference(dashboard, min_col=144, min_row=60, max_row=60 + ytd_source_rows)
+            ytd_target_chart.add_data(ytd_target_ref, titles_from_data=True)
+            ytd_target_chart.y_axis.axId = ytd_chart.y_axis.axId
+            ytd_target_chart.x_axis.axId = ytd_chart.x_axis.axId
+            if ytd_target_chart.series:
+                ytd_target_chart.series[0].graphicalProperties.line.solidFill = "FF0000"
+                ytd_target_chart.series[0].graphicalProperties.line.width = 19050
+                ytd_target_chart.series[0].graphicalProperties.line.prstDash = "lgDash"
+                ytd_target_chart.series[0].marker.symbol = "none"
+                ytd_target_chart.series[0].smooth = False
+                ytd_target_chart.series[0].dLbls = DataLabelList()
+                ytd_target_chart.series[0].dLbls.showVal = False
+                ytd_target_chart.series[0].dLbls.showSerName = False
+                ytd_target_chart.series[0].dLbls.showCatName = False
+                ytd_target_chart.series[0].dLbls.showLegendKey = False
+            ytd_chart += ytd_target_chart
+            dashboard.add_chart(ytd_chart, "C49")
 
     widths = {
         "A": 35,
@@ -1558,15 +1640,36 @@ def write_dashboard_panel_title(sheet: Worksheet, cell_range: str, title: str, c
     start_cell = cell_range.split(":", 1)[0]
     cell = cast(Any, sheet[start_cell])
     cell.value = title
-    cell.font = Font(size=12, bold=True, color=color)
-    cell.fill = PatternFill("solid", fgColor=fill_color)
-    cell.alignment = Alignment(horizontal="center", vertical="center")
-    cell.border = Border(
+    cell.font = Font(size=16, bold=True, color=color)
+    panel_fill = PatternFill("solid", fgColor=fill_color)
+    panel_alignment = Alignment(horizontal="center", vertical="center")
+    panel_border = Border(
         left=Side(style="thin", color="DDE7F3"),
         right=Side(style="thin", color="DDE7F3"),
         top=Side(style="thin", color="DDE7F3"),
         bottom=Side(style="thin", color="DDE7F3"),
     )
+    # Apply fill/alignment/border to ALL cells in range (openpyxl requires this for merged cells)
+    min_col, min_row, max_col, max_row = range_boundaries(cell_range)
+    for r in range(min_row, max_row + 1):
+        for c in range(min_col, max_col + 1):
+            c_cell = cast(Any, sheet.cell(r, c))
+            c_cell.fill = panel_fill
+            c_cell.alignment = panel_alignment
+            c_cell.border = panel_border
+
+
+def _set_dLbls_font_size(dLbls: object, pt: int) -> None:
+    """Set data label font size using openpyxl RichText / CharacterProperties."""
+    from openpyxl.chart.text import RichText
+    from openpyxl.drawing.text import (
+        RichTextProperties, Paragraph, ParagraphProperties, CharacterProperties,
+    )
+    sz = pt * 100  # e.g. 16pt → 1600 (hundredths of a point)
+    rpr = CharacterProperties(sz=sz, b=False)
+    para = Paragraph(pPr=ParagraphProperties(defRPr=rpr), endParaRPr=rpr)
+    txPr = RichText(bodyPr=RichTextProperties(), p=[para])
+    cast(Any, dLbls).txPr = txPr  # type: ignore[attr-defined]
 
 
 def write_chart_callout(
@@ -1965,6 +2068,39 @@ def write_dashboard_chart_sources(
         count_cell = cast(Any, sheet.cell(14 + i, 141))
         count_cell.value = f'=IFERROR({formula},0)'
 
+    # YTD average attendance per department (EL=142, EM=143, EN=144 starting row 60)
+    dept_monthly_vals: dict[str, list[float]] = {dept: [] for dept, _, _ in department_rows}
+    # Track which months already have data so current month isn't double-counted
+    current_month_in_history: set[str] = set()
+    for _, month_num, _, month_dept_rows, _ in dashboard_months:
+        month_dict = {d: att for d, _, att in month_dept_rows}
+        for dept, _, _ in department_rows:
+            if dept in month_dict and month_dict[dept] > 0:
+                dept_monthly_vals[dept].append(month_dict[dept])
+                if month_num == options.month:
+                    current_month_in_history.add(dept)
+    # Merge current month from department_rows (freshly computed) for depts not yet in history
+    current_month_dict = {dept: att for dept, _, att in department_rows}
+    for dept, _, _ in department_rows:
+        if dept not in current_month_in_history and current_month_dict.get(dept, 0) > 0:
+            dept_monthly_vals[dept].append(current_month_dict[dept])
+    ytd_sorted = sorted(
+        ((dept, sum(vals) / len(vals) if vals else 0.0) for dept, vals in dept_monthly_vals.items()),
+        key=lambda x: x[1], reverse=True,
+    )
+    cast(Any, sheet["EL60"]).value = "Department"
+    cast(Any, sheet["EM60"]).value = "YTD Avg (%)"
+    cast(Any, sheet["EN60"]).value = "Target 60%"
+    for i, (dept_name, ytd_avg) in enumerate(ytd_sorted):
+        row = 61 + i
+        cast(Any, sheet.cell(row, 142)).value = dept_name
+        ytd_val_cell = cast(Any, sheet.cell(row, 143))
+        ytd_val_cell.value = round(ytd_avg, 4)
+        ytd_val_cell.number_format = "0%"
+        ytd_target_cell = cast(Any, sheet.cell(row, 144))
+        ytd_target_cell.value = 0.6
+        ytd_target_cell.number_format = "0%"
+
 
 def write_dashboard_filter_model(
     sheet: Worksheet,
@@ -2059,6 +2195,31 @@ def excel_escape(value: object) -> str:
 def normalize_dashboard_key(value: object) -> str:
     text = str(value or "").strip().lower()
     return re.sub(r"[^0-9a-zA-Zก-๙]+", "", text)
+
+
+def _compute_dept_attendance_from_individual(
+    individual_sheet: Worksheet,
+    options: ProcessingOptions,
+) -> list[tuple[str, int, float]]:
+    """Compute current-month dept attendance directly from individual sheet scan/leave counts."""
+    hr = find_annual_report_header_row(individual_sheet)
+    hmap = read_header_map(individual_sheet, hr)
+    org_col = find_ptvn_org_count_column(hmap)
+    rec_col = find_month_metric_column(individual_sheet, hr, options, ["record", "working day", "working"])
+    leave_col = find_month_metric_column(individual_sheet, hr, options, ["leave", "ลา"])
+    wd = options.working_days or len(list(iter_month_business_days(options.year, options.month)))
+    if not rec_col or wd <= 0:
+        return []
+    from collections import defaultdict as _dd
+    dept_vals: dict[str, list[float]] = _dd(list)
+    for row in range(hr + 1, individual_sheet.max_row + 1):
+        dept = individual_sheet.cell(row, org_col).value
+        scans = individual_sheet.cell(row, rec_col).value
+        leaves = individual_sheet.cell(row, leave_col).value if leave_col else 0
+        if dept and isinstance(scans, (int, float)):
+            pct = min(round((scans + float(leaves or 0)) / wd, 4), 1.0)
+            dept_vals[str(dept)].append(pct)
+    return [(dept, len(vals), round(sum(vals) / len(vals), 4)) for dept, vals in dept_vals.items()]
 
 
 def collect_dashboard_months(
@@ -2276,9 +2437,7 @@ def write_dashboard_card(
     else:
         display_value = f"{value} {value_type}" if value_type not in {"days", "people", "departments"} else f"{value}"
     cell.value = display_value if value_type == "formula" else f"{label}\n{display_value}"
-    cell.font = Font(size=13, bold=True, color=color)
-    cell.fill = PatternFill("solid", fgColor=fill)
-    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    cell.font = Font(size=16, bold=True, color=color)
     card_border = Border(
         left=Side(style="thin", color="DDE7F3"),
         right=Side(style="thin", color="DDE7F3"),
