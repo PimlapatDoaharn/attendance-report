@@ -911,6 +911,23 @@ def update_ptvn_individual_report(
             )
             target_cell.number_format = "0%"
 
+    # Conditional formatting on target column: color by attendance tier
+    if target_col:
+        from openpyxl.formatting.rule import Rule
+        from openpyxl.styles.differential import DifferentialStyle
+        from openpyxl.styles import Font as _IFont, PatternFill as _IFill
+        data_start = header_row + 2  # skip header and row 3 (working days)
+        data_end = sheet.max_row
+        target_letter = get_column_letter(target_col)
+        cf_range = f"{target_letter}{data_start}:{target_letter}{data_end}"
+        _green = DifferentialStyle(fill=_IFill(bgColor="E9F7EF"))
+        _amber = DifferentialStyle(fill=_IFill(bgColor="FEF6E4"))
+        _red   = DifferentialStyle(fill=_IFill(bgColor="FDEAEA"))
+        col_ref = f"${target_letter}{data_start}"
+        sheet.conditional_formatting.add(cf_range, Rule(type="expression", formula=[f"{col_ref}>=0.6"],              dxf=_green, stopIfTrue=True))
+        sheet.conditional_formatting.add(cf_range, Rule(type="expression", formula=[f"AND({col_ref}>=0.4,{col_ref}<0.6)"], dxf=_amber, stopIfTrue=True))
+        sheet.conditional_formatting.add(cf_range, Rule(type="expression", formula=[f"AND({col_ref}>0,{col_ref}<0.4)"],    dxf=_red,   stopIfTrue=True))
+
 
 def round_up_percentage(value: float, digits: int = 2) -> float:
     factor = 10**digits
