@@ -2,3 +2,5 @@ openpyxl>=3.1.5
 rapidfuzz>=3.9.7
 python-dateutil>=2.9.0
 pyinstaller>=6.10.0
+streamlit>=1.35.0
+pywebview>=5.0.0

@@ -126,6 +126,7 @@ def process_attendance_report(
     log(f"Loaded {len(employees)} employees from HR sheet.")
 
     finger_rows_raw = read_finger_scan_rows(finger_wb)
+    finger_wb.close()  # Free workbook memory — raw rows are already extracted
     if not finger_rows_raw:
         raise ValueError("ไม่พบข้อมูลใน Report Finger Scan")
     log(f"Loaded {len(finger_rows_raw)} raw finger scan rows.")
@@ -631,8 +632,6 @@ def write_count_scan_sheet(
     cast(Any, sheet.cell(grand_total_row, grand_total_col)).value = float(len(count_names))
     cast(Any, sheet.cell(grand_total_row, total_col)).value = None
 
-    for row_index in range(grand_total_row + 1, 1002):
-        cast(Any, sheet.cell(row_index, total_col)).value = f"=sum(C{row_index}:{last_date_column}{row_index})"
     cast(Any, sheet.cell(1, total_col)).value = float(total_col)
     cast(Any, sheet.cell(4, 2)).value = 0.0
     cast(Any, sheet.cell(4, grand_total_col)).value = 0.0
@@ -980,6 +979,7 @@ def write_ptvn_dashboard(
     if not department_rows:
         department_rows, overall = collect_ptvn_summary_formula_rows(summary_sheet, month_col, employee_department_by_name)
     # Load data_only copy for reading cached cell values from prior months (formulas not evaluated by openpyxl)
+    _data_wb = None
     if ptvn_source_path:
         _data_wb = load_workbook(Path(ptvn_source_path), data_only=True)
         _summary_readonly = (
@@ -990,6 +990,9 @@ def write_ptvn_dashboard(
     else:
         _summary_readonly = summary_sheet
     dashboard_months = collect_dashboard_months(_summary_readonly, options)
+    if _data_wb is not None:
+        _data_wb.close()  # Free data-only workbook — dashboard months already collected
+        _data_wb = None
     # Inject current month dept attendance computed directly from individual_sheet (AVERAGEIF formulas not evaluated)
     _curr_dept_rows = _compute_dept_attendance_from_individual(individual_sheet, options)
     if _curr_dept_rows:
@@ -2662,12 +2665,17 @@ def style_header(sheet: Worksheet) -> None:
 
 
 def autofit_columns(sheet: Worksheet) -> None:
-    for column_cells in sheet.columns:
-        max_length = 0
-        column_letter = get_column_letter(cast(int, column_cells[0].column))
-        for cell in column_cells:
-            max_length = max(max_length, len(str(cell.value or "")))
-        sheet.column_dimensions[column_letter].width = min(max(max_length + 2, 12), 45)
+    # Iterate only cells already written — avoids materialising empty cells for every
+    # row × column combination, which was the main cause of the OOM crash.
+    col_widths: dict[int, int] = {}
+    for (_, col), cell in sheet._cells.items():
+        if cell.value is not None:
+            length = len(str(cell.value))
+            if col not in col_widths or length > col_widths[col]:
+                col_widths[col] = length
+    for col_idx, max_length in col_widths.items():
+        col_letter = get_column_letter(col_idx)
+        sheet.column_dimensions[col_letter].width = min(max(max_length + 2, 12), 45)
 
 
 def ensure_sheet_order(workbook: Workbook, preferred_order: list[str]) -> None:
